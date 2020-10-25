@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -20,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @RequestMapping("/stock")
 public class StockController {
 
-    private static AtomicInteger count = new AtomicInteger(0);
+    private static AtomicInteger COUNT = new AtomicInteger(0);
 
     /**
      * 基于谷歌令牌桶算法 每秒接收100个请求
@@ -39,11 +40,12 @@ public class StockController {
      */
     @GetMapping("/kill")
     public String kill(Integer stockId) {
-        log.info("请求次数:{}", count.incrementAndGet());
+        log.info("请求次数:{}", COUNT.incrementAndGet());
         try {
-            if (!RATE_LIMITER.tryAcquire()) {
-                throw new BizException("限流...抛弃");
+            if (!RATE_LIMITER.tryAcquire(2, TimeUnit.SECONDS)) {
+                throw new BizException("活动太火爆啦~等会再试!");
             }
+
             Integer orderId = orderService.kill(stockId);
             return "秒杀成功,订单id:" + orderId;
         } catch (BizException e) {
