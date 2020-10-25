@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author: holmes
@@ -17,6 +18,8 @@ import javax.annotation.Resource;
 @RestController
 @RequestMapping("/stock")
 public class StockController {
+
+    private static AtomicInteger count = new AtomicInteger(0);
 
     @Resource
     private OrderService orderService;
@@ -30,6 +33,7 @@ public class StockController {
      */
     @GetMapping("/kill")
     public String kill(Integer stockId) {
+        log.info("请求次数:{}", count.incrementAndGet());
         log.info("商品id:{}", stockId);
         Integer orderId = null;
         try {

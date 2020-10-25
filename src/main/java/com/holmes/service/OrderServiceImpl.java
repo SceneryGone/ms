@@ -15,6 +15,7 @@ import javax.annotation.Resource;
  * @author: holmes
  * @date: 2020/10/25 3:48 下午
  */
+@Transactional(rollbackFor = Exception.class)
 @Slf4j
 @Service
 public class OrderServiceImpl implements OrderService {
@@ -32,32 +33,51 @@ public class OrderServiceImpl implements OrderService {
      * @author: holmes
      * @date: 2020/10/25 3:47 下午
      */
-    @Transactional(rollbackFor = Exception.class)
     @Override
     public Integer kill(Integer stockId) {
-        // 判断库存
-        log.info("库存判断:{}", stockId);
-        Stock stock = stockMapper.selectByPrimaryKey(stockId);
-        if (stock.getCount().equals(stock.getSale())) {
-            throw new BizException("商品被卖光啦!");
+        // 1. 判断库存
+        Stock stock = checkStock(stockId);
+
+        // 2. 扣库存
+        int subStock = subStock(stock);
+        if (subStock <= 0) {
+            log.error("没有抢到商品");
+            throw new BizException("没有抢到该商品");
         }
 
-        // 扣库存
-        log.info("扣除库存:{}", stockId);
-        stock.setSale(stock.getSale() + 1);
-        stockMapper.updateByPrimaryKey(stock);
+        // 3. 创建订单
+        return createStockOrder(stockId, stock);
+    }
 
-        // 创建订单
+    /**
+     * 创建订单
+     */
+    private Integer createStockOrder(Integer stockId, Stock stock) {
         log.info("创建库存:{}", stockId);
         StockOrder stockOrder = new StockOrder();
         stockOrder.setSid(stock.getId());
         stockOrder.setName(stock.getName());
         stockOrderMapper.insertSelective(stockOrder);
+        return stockOrder.getId();
+    }
 
-        // 返回订单id
-        Integer orderId = stockOrder.getId();
-        log.info("返回订单ID:{}", orderId);
-        return orderId;
+    /**
+     * 扣库存
+     */
+    private int subStock(Stock stock) {
+        log.info("扣除库存:{}", stock.getId());
+        return stockMapper.subStackSale(stock);
+    }
+
+    /**
+     * 判断库存
+     */
+    private Stock checkStock(Integer stockId) {
+        Stock stock = stockMapper.selectByPrimaryKey(stockId);
+        if (stock.getCount().equals(stock.getSale())) {
+            throw new BizException("商品被卖光啦!");
+        }
+        return stock;
     }
 
 }

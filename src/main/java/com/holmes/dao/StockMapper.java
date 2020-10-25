@@ -14,4 +14,6 @@ public interface StockMapper {
     int updateByPrimaryKeySelective(Stock record);
 
     int updateByPrimaryKey(Stock record);
+
+    int subStackSale(Stock stock);
 }
