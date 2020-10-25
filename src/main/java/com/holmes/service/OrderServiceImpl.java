@@ -39,11 +39,7 @@ public class OrderServiceImpl implements OrderService {
         Stock stock = checkStock(stockId);
 
         // 2. 扣库存
-        int subStock = subStock(stock);
-        if (subStock <= 0) {
-            log.error("没有抢到商品");
-            throw new BizException("没有抢到该商品");
-        }
+        subStock(stock);
 
         // 3. 创建订单
         return createStockOrder(stockId, stock);
@@ -64,9 +60,12 @@ public class OrderServiceImpl implements OrderService {
     /**
      * 扣库存
      */
-    private int subStock(Stock stock) {
+    private void subStock(Stock stock) {
         log.info("扣除库存:{}", stock.getId());
-        return stockMapper.subStackSale(stock);
+        int subStock = stockMapper.subStackSale(stock);
+        if (subStock == 0) {
+            throw new BizException("对不起,没有抢到该商品,请重试~");
+        }
     }
 
     /**
