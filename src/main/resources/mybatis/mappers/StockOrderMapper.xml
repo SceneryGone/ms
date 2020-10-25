@@ -13,7 +13,7 @@
     id, sid, name, create_time, update_time, delete_flag
   </sql>
   <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="java.lang.Integer" >
-    select 
+    select
     <include refid="Base_Column_List" />
     from t_stock_order
     where id = #{id,jdbcType=INTEGER}
@@ -23,14 +23,14 @@
     where id = #{id,jdbcType=INTEGER}
   </delete>
   <insert id="insert" parameterType="com.holmes.entity.StockOrder" >
-    insert into t_stock_order (id, sid, name, 
+    insert into t_stock_order (id, sid, name,
       create_time, update_time, delete_flag
       )
-    values (#{id,jdbcType=INTEGER}, #{sid,jdbcType=INTEGER}, #{name,jdbcType=VARCHAR}, 
+    values (#{id,jdbcType=INTEGER}, #{sid,jdbcType=INTEGER}, #{name,jdbcType=VARCHAR},
       #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{deleteFlag,jdbcType=BIT}
       )
   </insert>
-  <insert id="insertSelective" parameterType="com.holmes.entity.StockOrder" >
+  <insert id="insertSelective" parameterType="com.holmes.entity.StockOrder" useGeneratedKeys="true" keyProperty="id">
     insert into t_stock_order
     <trim prefix="(" suffix=")" suffixOverrides="," >
       <if test="id != null" >
