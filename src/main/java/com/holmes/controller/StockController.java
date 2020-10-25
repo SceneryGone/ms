@@ -1,5 +1,6 @@
 package com.holmes.controller;
 
+import com.google.common.util.concurrent.RateLimiter;
 import com.holmes.service.OrderService;
 import com.holmes.util.BizException;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,11 @@ public class StockController {
 
     private static AtomicInteger count = new AtomicInteger(0);
 
+    /**
+     * 基于谷歌令牌桶算法 每秒接收100个请求
+     */
+    private static final RateLimiter RATE_LIMITER = RateLimiter.create(100);
+
     @Resource
     private OrderService orderService;
 
@@ -34,15 +40,16 @@ public class StockController {
     @GetMapping("/kill")
     public String kill(Integer stockId) {
         log.info("请求次数:{}", count.incrementAndGet());
-        log.info("商品id:{}", stockId);
-        Integer orderId = null;
         try {
-            orderId = orderService.kill(stockId);
+            if (!RATE_LIMITER.tryAcquire()) {
+                throw new BizException("限流...抛弃");
+            }
+            Integer orderId = orderService.kill(stockId);
+            return "秒杀成功,订单id:" + orderId;
         } catch (BizException e) {
-            log.info("exception:", e);
+            log.info("exception:{}", e.getMessage());
             return e.getMessage();
         }
-        return "秒杀成功,订单id:" + orderId;
     }
 
 }
