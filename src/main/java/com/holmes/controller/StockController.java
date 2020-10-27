@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author: holmes
@@ -20,8 +19,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 @RestController
 @RequestMapping("/stock")
 public class StockController {
-
-    private static AtomicInteger COUNT = new AtomicInteger(0);
 
     /**
      * 基于谷歌令牌桶算法 每秒接收100个请求
@@ -39,15 +36,32 @@ public class StockController {
      * @date: 2020/10/25 3:44 下午
      */
     @GetMapping("/kill")
-    public String kill(Integer stockId) {
-        log.info("请求次数:{}", COUNT.incrementAndGet());
+    public String kill(Integer stockId, Integer userId, String md5) {
         try {
-            if (!RATE_LIMITER.tryAcquire(2, TimeUnit.SECONDS)) {
+            if (!RATE_LIMITER.tryAcquire(1, TimeUnit.SECONDS)) {
                 throw new BizException("活动太火爆啦~等会再试!");
             }
 
-            Integer orderId = orderService.kill(stockId);
+            Integer orderId = orderService.kill(stockId,userId,md5);
             return "秒杀成功,订单id:" + orderId;
+        } catch (BizException e) {
+            log.info("exception:{}", e.getMessage());
+            return e.getMessage();
+        }
+    }
+
+    /**
+     * @description: 获取md5
+     * @param stockId 商品id
+     * @param userId 用户id
+     * @return {@link String}
+     * @author: holmes
+     * @date: 2020/10/27 10:14 下午
+     */
+    @GetMapping(value = "/md5")
+    public String md5(Integer stockId, Integer userId) {
+        try {
+            return orderService.md5(stockId, userId);
         } catch (BizException e) {
             log.info("exception:{}", e.getMessage());
             return e.getMessage();

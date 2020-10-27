@@ -2,14 +2,20 @@ package com.holmes.service;
 
 import com.holmes.dao.StockMapper;
 import com.holmes.dao.StockOrderMapper;
+import com.holmes.dao.UserMapper;
 import com.holmes.entity.Stock;
 import com.holmes.entity.StockOrder;
+import com.holmes.entity.User;
 import com.holmes.util.BizException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.DigestUtils;
 
 import javax.annotation.Resource;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author: holmes
@@ -20,21 +26,44 @@ import javax.annotation.Resource;
 @Service
 public class OrderServiceImpl implements OrderService {
 
+    private static final String STOCK_KEY_PREFIX = "kill_";
+
+
     @Resource
     private StockMapper stockMapper;
 
     @Resource
     private StockOrderMapper stockOrderMapper;
 
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Resource
+    private UserMapper userMapper;
+
+
     /**
      * @description: 秒杀下单方法
-     * @param stockId 商品id
+     * @param stockId
+     * @param userId
+     * @param md5
      * @return {@link Integer} 返回的订单id
      * @author: holmes
      * @date: 2020/10/25 3:47 下午
      */
     @Override
-    public Integer kill(Integer stockId) {
+    public Integer kill(Integer stockId, Integer userId, String md5) {
+        // 校验redis中的秒杀商品是否超时
+        if (!stringRedisTemplate.hasKey(STOCK_KEY_PREFIX + stockId)) {
+            throw new BizException("抢购活动已结束");
+        }
+
+        // 验证签名
+        String hashKey = "KEY_" + userId + "_" + stockId;
+        if (md5 == null || !StringUtils.equals(stringRedisTemplate.opsForValue().get(hashKey), md5)) {
+            throw new BizException("当前请求数据不合法,请稍后再试");
+        }
+
         // 1. 判断库存
         Stock stock = checkStock(stockId);
 
@@ -43,6 +72,30 @@ public class OrderServiceImpl implements OrderService {
 
         // 3. 创建订单
         return createStockOrder(stockId, stock);
+    }
+
+    @Override
+    public String md5(Integer stockId, Integer userId) {
+        // 存在用户信息
+        User user = userMapper.selectByPrimaryKey(userId);
+        if (user == null) {
+            throw new BizException("用户信息不存在");
+        }
+
+        // 存在商品信息
+        Stock stock = stockMapper.selectByPrimaryKey(stockId);
+        if (stock == null) {
+            throw new BizException("商品信息不存在");
+        }
+
+        // 生成md5放入redis
+        String hashKey = "KEY_" + userId + "_" + stockId;
+        // 实际项目中随机生成即可
+        String salt = "!@#$%";
+        String value = DigestUtils.md5DigestAsHex((userId + stockId + salt).getBytes());
+        stringRedisTemplate.opsForValue().set(hashKey, value, 20, TimeUnit.SECONDS);
+        log.info("Redis写入的key:{},value:{}", hashKey, value);
+        return value;
     }
 
     /**
