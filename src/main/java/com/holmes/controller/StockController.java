@@ -2,6 +2,7 @@ package com.holmes.controller;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.holmes.service.OrderService;
+import com.holmes.service.UserService;
 import com.holmes.util.BizException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +29,9 @@ public class StockController {
     @Resource
     private OrderService orderService;
 
+    @Resource
+    private UserService userService;
+
     /**
      * @description: 秒杀
      * @param stockId 商品id
@@ -38,11 +42,21 @@ public class StockController {
     @GetMapping("/kill")
     public String kill(Integer stockId, Integer userId, String md5) {
         try {
+            // 限流
             if (!RATE_LIMITER.tryAcquire(1, TimeUnit.SECONDS)) {
                 throw new BizException("活动太火爆啦~等会再试!");
             }
 
-            Integer orderId = orderService.kill(stockId,userId,md5);
+            // 限制单个用户调用频率
+            int count = userService.saveUserCount(userId);
+            log.info("用户:{} 访问次数为:{}", userId, count);
+            boolean isBanned = userService.getUserCount(userId);
+            if (isBanned) {
+                return "购买失败,超过频率限制";
+            }
+
+            // 调用秒杀业务
+            Integer orderId = orderService.kill(stockId, userId, md5);
             return "秒杀成功,订单id:" + orderId;
         } catch (BizException e) {
             log.info("exception:{}", e.getMessage());

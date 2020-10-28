@@ -90,7 +90,6 @@ public class OrderServiceImpl implements OrderService {
 
         // 生成md5放入redis
         String hashKey = "KEY_" + userId + "_" + stockId;
-        // 实际项目中随机生成即可
         String salt = "!@#$%";
         String value = DigestUtils.md5DigestAsHex((userId + stockId + salt).getBytes());
         stringRedisTemplate.opsForValue().set(hashKey, value, 20, TimeUnit.SECONDS);
